@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Göz Uyumu Simülasyonu</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+  /* Layout: one projector-friendly screen. Header, the eye stage, a big slider, then a state strip. */
+  :root {
+    --bg: #F5F6FC;
+    --panel: #FFFFFF;
+    --ink: #1B2040;
+    --muted: #5B6280;
+    --line: #DDE1EE;
+    --accent: #6C5CE7;
+    --accent-ink: #4B3CC4;
+    --accent-soft: #EEEBFF;
+    --ray: #F2A900;
+    --obj: #E8590C;
+    --good: #2F9E44;
+    --good-soft: #E3F5E7;
+    --warn: #D9480F;
+    --warn-soft: #FFEDE3;
+    --font-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+    --font-body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10132A; --panel: #191D3B; --ink: #EEF0FF; --muted: #A9AFCC; --line: #2D3259;
+      --accent: #A396FF; --accent-ink: #C4BCFF; --accent-soft: #2A2759; --ray: #FFC53D; --obj: #FF8A3D;
+      --good: #69DB7C; --good-soft: #1D3A27; --warn: #FF8A65; --warn-soft: #3D2320; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10132A; --panel: #191D3B; --ink: #EEF0FF; --muted: #A9AFCC; --line: #2D3259;
+    --accent: #A396FF; --accent-ink: #C4BCFF; --accent-soft: #2A2759; --ray: #FFC53D; --obj: #FF8A3D;
+    --good: #69DB7C; --good-soft: #1D3A27; --warn: #FF8A65; --warn-soft: #3D2320; color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.45;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding-block: 18px 22px; display: grid; gap: 14px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px; }
+  h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.05; margin: 0; text-wrap: balance; }
+  h1 span { color: var(--accent-ink); }
+  .sub { margin: 0; color: var(--muted); font-size: 1.02rem; max-width: 62ch; }
+
+  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; position: relative; }
+  .stage svg { display: block; width: 100%; height: auto; }
+  .lbl { font-family: var(--font-body); font-weight: 800; font-size: 19px; fill: var(--ink); }
+  .lbl.m { fill: var(--muted); font-weight: 700; font-size: 16px; }
+  .axis { stroke: var(--line); stroke-width: 2; stroke-dasharray: 6 8; }
+  .dist { font-family: var(--font-display); font-weight: 700; font-size: 22px; fill: var(--obj); }
+
+  .controls { display: grid; grid-template-columns: auto 1fr auto; gap: 14px 18px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 18px; }
+  .end { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; color: var(--muted); white-space: nowrap; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; border-radius: 999px; background: linear-gradient(90deg, var(--accent-soft), var(--accent)); outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 38px; height: 38px; border-radius: 50%; background: var(--panel); border: 6px solid var(--obj); box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); }
+  input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: var(--panel); border: 6px solid var(--obj); box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); }
+  input[type=range]:focus-visible { box-shadow: 0 0 0 4px var(--accent-soft), 0 0 0 6px var(--accent); }
+  .row2 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+  .readout { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-right: auto; }
+  .readout b { color: var(--obj); }
+  button { font: inherit; font-weight: 800; border-radius: 999px; padding: 9px 18px; border: 2px solid var(--accent); background: var(--accent-soft); color: var(--accent-ink); cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+  button:focus-visible, .switch input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .switch { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; cursor: pointer; color: var(--muted); }
+  .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .switch span.track { width: 50px; height: 28px; border-radius: 999px; background: var(--line); position: relative; flex: none; transition: background .2s; }
+  .switch span.track::after { content: ""; position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; border-radius: 50%; background: var(--panel); transition: transform .2s; box-shadow: 0 1px 3px rgb(0 0 0 / .3); }
+  .switch input:checked + span.track { background: var(--warn); }
+  .switch input:checked + span.track::after { transform: translateX(22px); }
+
+  .state { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.25fr); gap: 12px; }
+  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+  .chip .k { font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .chip .v { font-family: var(--font-display); font-weight: 800; font-size: 1.45rem; line-height: 1.1; color: var(--accent-ink); }
+  .chip .d { font-size: .92rem; color: var(--muted); }
+  .retina { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: center; }
+  .retina .pic { width: 96px; height: 96px; border-radius: 50%; background: radial-gradient(circle at 50% 50%, #F8C3A6 0%, #F3A27A 70%, #E0845C 100%); display: grid; place-items: center; overflow: hidden; border: 3px solid #93404C; }
+  .retina .pic svg { width: 70px; height: 70px; transition: filter .15s; }
+  .verdict { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; line-height: 1.15; }
+  .verdict.ok { color: var(--good); }
+  .verdict.bad { color: var(--warn); }
+  .explain { background: var(--accent-soft); border-radius: 16px; padding: 12px 16px; font-size: 1.12rem; font-weight: 700; color: var(--ink); }
+  .explain.bad { background: var(--warn-soft); }
+  .foot { color: var(--muted); font-size: .85rem; margin: 0; }
+
+  @media (max-width: 900px) {
+    .state { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .retina { grid-column: 1 / -1; }
+  }
+  @media (max-width: 560px) {
+    body { font-size: 16px; }
+    .controls { grid-template-columns: 1fr; }
+    .end { display: none; }
+    .state { grid-template-columns: 1fr; }
+    .lbl { font-size: 24px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Göz uyumu: <span>yakına ve uzağa bakış</span></h1>
+    <p class="sub">Sürgüyle cismi göze yaklaştır ya da uzaklaştır. Merceğin şeklini ve ışınların retinada nerede birleştiğini izle.</p>
+  </header>
+
+  <div class="stage">
+    <svg id="scene" viewBox="0 0 1200 500" role="img" aria-label="Göz kesiti, cisim ve ışınlar"></svg>
+  </div>
+
+  <div class="controls">
+    <span class="end">◀ Uzak</span>
+    <input id="dist" type="range" min="0" max="100" step="0.5" value="18" aria-label="Cismin göze uzaklığı (sağa çektikçe yaklaşır)">
+    <span class="end">Yakın ▶</span>
+    <div class="row2">
+      <div class="readout" id="readout">Cisim uzaklığı: <b>3 m</b></div>
+      <button id="play" type="button" aria-pressed="false">▶ Otomatik oynat</button>
+      <label class="switch" for="lock"><input id="lock" type="checkbox"><span class="track"></span>Mercek şeklini değiştiremeseydi?</label>
+    </div>
+  </div>
+
+  <div class="state">
+    <div class="chip"><span class="k">Kirpiksi kaslar</span><span class="v" id="sMuscle">Gevşek</span><span class="d" id="dMuscle">Merceğin çevresindeki halka kas</span></div>
+    <div class="chip"><span class="k">Mercek bağları</span><span class="v" id="sZon">Gergin</span><span class="d" id="dZon">Merceği kenarlarından çeker</span></div>
+    <div class="chip"><span class="k">Mercek</span><span class="v" id="sLens">İnce</span><span class="d" id="dLens">Işığı az kırar</span></div>
+    <div class="chip retina">
+      <div class="pic" aria-hidden="true">
+        <svg viewBox="0 0 70 70"><g id="retImg"><line x1="35" y1="14" x2="35" y2="50" stroke="#E8590C" stroke-width="7" stroke-linecap="round"/><path d="M35 62 L24 46 L46 46 Z" fill="#E8590C"/></g></svg>
+      </div>
+      <div><span class="k" style="font-size:.78rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Retinadaki görüntü</span>
+        <div class="verdict ok" id="verdict">Net ve ters</div></div>
+    </div>
+  </div>
+
+  <div class="explain" id="explain">Uzağa bakarken kirpiksi kaslar gevşer, mercek bağları gerilir; mercek incelir ve ışığı daha az kırar.</div>
+  <p class="foot">Şematik çizimdir; uzaklıklar ve ışın açıları ölçekli değildir. Işık gözde yansımaz, kırılır: önce korneada, sonra mercekte.</p>
+</div>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('scene');
+  const el = (tag, attrs = {}, parent = svg) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+
+  // ---- geometry (screen units, schematic) ----
+  const AX = 250;                 // optical axis y
+  const EYE = { cx: 900, r: 200 };
+  const XL = 760, XR = 1078;      // lens plane, retina
+  const OBJ_H = 72;               // object height (px)
+  const X_FAR = 70, X_NEAR = 520; // object x positions on screen
+  const D_FAR = 600, D_NEAR = 25; // real distances shown (cm)
+  const LENS_RY = 46;
+
+  // ---- static drawing ----
+  el('line', { x1: 20, y1: AX, x2: 1180, y2: AX, class: 'axis' });
+  const defs = el('defs');
+  const g = el('radialGradient', { id: 'vit', cx: '0.42', cy: '0.42', r: '0.65' }, defs);
+  el('stop', { offset: '0', 'stop-color': '#F6FBFE' }, g); el('stop', { offset: '1', 'stop-color': '#D3EAF6' }, g);
+  el('path', { d: `M 1068 300 C 1110 316, 1150 330, 1196 338 L 1196 384 C 1150 376, 1104 360, 1060 340 Z`, fill: '#F2D48E', stroke: '#C49A3E', 'stroke-width': 3 });
+  el('circle', { cx: EYE.cx, cy: AX, r: 200, fill: '#F7F8FB', stroke: '#8E99AE', 'stroke-width': 3 });
+  el('circle', { cx: EYE.cx, cy: AX, r: 188, fill: '#93404C' });
+  el('circle', { cx: EYE.cx, cy: AX, r: 181, fill: '#F3A27A' });
+  el('circle', { cx: EYE.cx, cy: AX, r: 173, fill: 'url(#vit)' });
+  const fx = 742, fdy = Math.sqrt(188 * 188 - (EYE.cx - fx) ** 2);
+  el('path', { d: `M ${fx} ${AX - fdy} A 188 188 0 0 0 ${fx} ${AX + fdy} Z`, fill: '#E1F3FB' });
+  const cjx = EYE.cx + 200 * Math.cos(155 * Math.PI / 180), cjy = 200 * Math.sin(155 * Math.PI / 180);
+  const CC = { x: 758.3, r: 93.3 };
+  el('path', { d: `M ${cjx} ${AX - cjy} A ${CC.r} ${CC.r} 0 0 0 ${cjx} ${AX + cjy} Z`, fill: '#E1F3FB' });
+  el('path', { d: `M ${cjx} ${AX - cjy} A ${CC.r} ${CC.r} 0 0 0 ${cjx} ${AX + cjy}`, fill: 'none', stroke: '#A6D8EE', 'stroke-width': 9 });
+  el('path', { d: `M ${cjx} ${AX - cjy} A ${CC.r} ${CC.r} 0 0 0 ${cjx} ${AX + cjy}`, fill: 'none', stroke: '#5DA9CC', 'stroke-width': 2.5, transform: 'translate(-4.5 0)' });
+  el('ellipse', { cx: 1074, cy: AX, rx: 5, ry: 13, fill: '#F6CF3F', stroke: '#C99A12', 'stroke-width': 2 });
+
+  const zonG = el('g');
+  const cilT = el('path', { fill: '#93404C', stroke: '#6E2833', 'stroke-width': 2 });
+  const cilB = el('path', { fill: '#93404C', stroke: '#6E2833', 'stroke-width': 2 });
+  const lens = el('ellipse', { cx: XL, cy: AX, ry: LENS_RY, rx: 14, fill: '#FBEFB6', stroke: '#CFAE4E', 'stroke-width': 3 });
+  el('rect', { x: 722, y: AX - 64, width: 10, height: 44, rx: 5, fill: '#5E8F5A', stroke: '#3D663A', 'stroke-width': 2 });
+  el('rect', { x: 722, y: AX + 20, width: 10, height: 44, rx: 5, fill: '#5E8F5A', stroke: '#3D663A', 'stroke-width': 2 });
+
+  const rayG = el('g');
+  const objG = el('g');
+  const objLine = el('line', { stroke: 'var(--obj)', 'stroke-width': 9, 'stroke-linecap': 'round' }, objG);
+  const objHead = el('path', { fill: 'var(--obj)' }, objG);
+  const distTxt = el('text', { class: 'dist', 'text-anchor': 'middle' });
+  const imgG = el('g');
+
+  const lab = (x, y, t, cls = 'lbl', anchor = 'middle') => { const e = el('text', { x, y, class: cls, 'text-anchor': anchor }); e.textContent = t; return e; };
+  lab(640, 140, 'Kornea'); el('line', { x1: 655, y1: 148, x2: 672, y2: 196, stroke: 'var(--muted)', 'stroke-width': 1.5 });
+  lab(760, 470, 'Mercek'); el('line', { x1: 760, y1: 450, x2: 760, y2: AX + LENS_RY + 4, stroke: 'var(--muted)', 'stroke-width': 1.5 });
+  lab(830, 92, 'Kirpiksi kas'); el('line', { x1: 812, y1: 100, x2: 752, y2: AX - 80, stroke: 'var(--muted)', 'stroke-width': 1.5 });
+  lab(1140, 120, 'Retina'); el('line', { x1: 1112, y1: 128, x2: 1066, y2: 166, stroke: 'var(--muted)', 'stroke-width': 1.5 });
+  const focusNote = lab(1080, 480, '', 'lbl m');
+
+  // ---- helpers ----
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const fmtDist = (cm) => cm >= 100 ? (Math.round(cm / 10) / 10).toString().replace('.', ',') + ' m' : Math.round(cm) + ' cm';
+  const corneaX = (h) => CC.x - Math.sqrt(Math.max(0, CC.r * CC.r - h * h));
+
+  const state = { v: 18, locked: false };
+  const ui = {
+    dist: document.getElementById('dist'), readout: document.getElementById('readout'), play: document.getElementById('play'), lock: document.getElementById('lock'),
+    sMuscle: document.getElementById('sMuscle'), dMuscle: document.getElementById('dMuscle'), sZon: document.getElementById('sZon'), dZon: document.getElementById('dZon'),
+    sLens: document.getElementById('sLens'), dLens: document.getElementById('dLens'), verdict: document.getElementById('verdict'), explain: document.getElementById('explain'),
+    retImg: document.getElementById('retImg'),
+  };
+
+  function render() {
+    const t = state.v / 100;                                   // accommodation the eye needs (0 far, 1 near)
+    const tx = lerp(X_FAR, X_NEAR, t);
+    const dcm = 1 / lerp(1 / D_FAR, 1 / D_NEAR, t);            // slider is linear in diopters
+    const acc = state.locked ? 0 : t;                          // accommodation the lens actually does
+    const blurred = state.locked && t > 0.06;
+
+    // lens, ciliary body, zonules
+    const rx = lerp(11, 27, acc);
+    lens.setAttribute('rx', rx.toFixed(1));
+    const k = lerp(0, 10, acc);                                // contraction: muscle bulges inward
+    cilT.setAttribute('d', `M 730 ${AX - 96} L ${762 + k * .4} ${AX - 92} L ${756 + k} ${AX - 74 + k * .6} L 734 ${AX - 66} Z`);
+    cilB.setAttribute('d', `M 730 ${AX + 96} L ${762 + k * .4} ${AX + 92} L ${756 + k} ${AX + 74 - k * .6} L 734 ${AX + 66} Z`);
+    zonG.replaceChildren();
+    const sag = lerp(0, 7, acc), zc = acc > 0.5 ? '#B5A6B8' : '#6F5C73';
+    for (const sgn of [-1, 1]) {
+      for (const dx of [-7, 0, 7]) {
+        const x1 = 750 + k * .8 + dx * .5, y1 = AX + sgn * (74 - k * .6);
+        const x2 = XL + dx * Math.min(1, rx / 14), y2 = AX + sgn * LENS_RY * Math.sqrt(Math.max(0, 1 - (dx * Math.min(1, rx / 14) / rx) ** 2));
+        el('path', { d: `M ${x1} ${y1} Q ${(x1 + x2) / 2 + sag} ${(y1 + y2) / 2} ${x2} ${y2}`, fill: 'none', stroke: zc, 'stroke-width': 3 }, zonG);
+      }
+    }
+
+    // object
+    const hT = -OBJ_H;
+    objLine.setAttribute('x1', tx); objLine.setAttribute('y1', AX); objLine.setAttribute('x2', tx); objLine.setAttribute('y2', AX + hT + 18);
+    objHead.setAttribute('d', `M ${tx} ${AX + hT - 6} L ${tx + 15} ${AX + hT + 20} L ${tx - 15} ${AX + hT + 20} Z`);
+    distTxt.setAttribute('x', tx); distTxt.setAttribute('y', AX + 46); distTxt.textContent = fmtDist(dcm);
+
+    // rays (schematic): object tip -> cornea -> lens -> focus point
+    rayG.replaceChildren(); imgG.replaceChildren();
+    const hImg = lerp(16, 46, t);                              // inverted image, bigger when near
+    const xF = blurred ? XR + lerp(0, 105, t) : XR;            // focus falls behind the retina if the lens cannot thicken
+    const hF = blurred ? hImg * (xF - XL) / (XR - XL) : hImg;
+    const hits = [];
+    for (const hc of [-22, -6, 10]) {
+      const xc = corneaX(hc);
+      const hl = hc * 0.6 - 3;
+      const sl = (hF - hl) / (xF - XL);
+      const hr = hl + sl * (XR - XL);
+      hits.push(hr);
+      el('polyline', { points: `${tx},${AX + hT} ${xc},${AX + hc} ${XL},${AX + hl} ${XR},${AX + hr}`, fill: 'none', stroke: 'var(--ray)', 'stroke-width': 3.2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, rayG);
+      if (blurred) el('line', { x1: XR, y1: AX + hr, x2: xF, y2: AX + hF, stroke: 'var(--ray)', 'stroke-width': 2.5, 'stroke-dasharray': '5 6', opacity: .8 }, rayG);
+    }
+    if (blurred) {
+      el('circle', { cx: xF, cy: AX + hF, r: 6, fill: 'var(--warn)' }, rayG);
+      focusNote.textContent = 'Odak retinanın arkasında!';
+      focusNote.setAttribute('style', 'fill: var(--warn)');
+    } else {
+      focusNote.textContent = '';
+      el('circle', { cx: XR, cy: AX + hImg, r: 5, fill: 'var(--good)' }, rayG);
+    }
+    const op = blurred ? .45 : 1;
+    el('line', { x1: XR - 6, y1: AX, x2: XR - 6, y2: AX + hImg - 8, stroke: 'var(--obj)', 'stroke-width': 5, 'stroke-linecap': 'round', opacity: op }, imgG);
+    el('path', { d: `M ${XR - 6} ${AX + hImg + 2} L ${XR - 13} ${AX + hImg - 10} L ${XR + 1} ${AX + hImg - 10} Z`, fill: 'var(--obj)', opacity: op }, imgG);
+
+    // panel text
+    ui.readout.innerHTML = `Cisim uzaklığı: <b>${fmtDist(dcm)}</b>`;
+    const level = acc < 0.25 ? 0 : acc < 0.65 ? 1 : 2;
+    ui.sMuscle.textContent = ['Gevşek', 'Biraz kasılı', 'Kasılı'][level];
+    ui.dMuscle.textContent = level === 0 ? 'Merceğin çevresindeki halka kas' : 'Kasılınca mercek bağları gevşer';
+    ui.sZon.textContent = ['Gergin', 'Biraz gevşek', 'Gevşek'][level];
+    ui.dZon.textContent = level === 0 ? 'Merceği kenarlardan çekip yassılaştırır' : 'Merceği daha az çeker';
+    ui.sLens.textContent = ['İnce (yassı)', 'Orta', 'Kalın (bombeli)'][level];
+    ui.dLens.textContent = ['Işığı az kırar', 'Işığı orta düzeyde kırar', 'Işığı çok kırar'][level];
+
+    const spread = Math.max(...hits) - Math.min(...hits);
+    ui.retImg.style.filter = blurred ? `blur(${Math.min(5, 0.6 + spread * 0.12).toFixed(1)}px)` : 'none';
+    if (blurred) {
+      ui.verdict.textContent = 'Bulanık';
+      ui.verdict.className = 'verdict bad';
+      ui.explain.className = 'explain bad';
+      ui.explain.textContent = 'Mercek kalınlaşamasaydı yakındaki cisimden gelen ışınlar retinanın arkasında birleşirdi ve görüntü bulanık olurdu. Göz uyumu bu yüzden önemli!';
+    } else {
+      ui.verdict.textContent = 'Net ve ters';
+      ui.verdict.className = 'verdict ok';
+      ui.explain.className = 'explain';
+      ui.explain.textContent = acc < 0.35
+        ? 'Uzağa bakarken kirpiksi kaslar gevşer, mercek bağları gerilir; mercek incelir ve ışığı daha az kırar.'
+        : 'Yakına bakarken kirpiksi kaslar kasılır, mercek bağları gevşer; mercek kalınlaşır ve ışığı daha çok kırar.';
+    }
+  }
+
+  ui.dist.addEventListener('input', () => { state.v = +ui.dist.value; render(); });
+  ui.lock.addEventListener('change', () => { state.locked = ui.lock.checked; render(); });
+
+  let raf = null, t0 = 0;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function tick(ts) {
+    if (!t0) t0 = ts - Math.acos(1 - 2 * state.v / 100) / (2 * Math.PI) * 7000;
+    const ph = ((ts - t0) % 7000) / 7000;
+    state.v = (1 - Math.cos(ph * 2 * Math.PI)) / 2 * 100;
+    ui.dist.value = state.v; render();
+    raf = requestAnimationFrame(tick);
+  }
+  ui.play.addEventListener('click', () => {
+    const on = ui.play.getAttribute('aria-pressed') !== 'true';
+    ui.play.setAttribute('aria-pressed', String(on));
+    ui.play.textContent = on ? '❚❚ Durdur' : '▶ Otomatik oynat';
+    if (on) { t0 = 0; raf = requestAnimationFrame(tick); } else { cancelAnimationFrame(raf); }
+  });
+  if (reduce) ui.play.title = 'Hareket azaltma açık: otomatik oynatma yavaş kalabilir.';
+  render();
+})();
+</script>
+
+</body>
+</html>
